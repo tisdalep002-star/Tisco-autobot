@@ -17,6 +17,7 @@ Weaving through code, networks, and the atoms of thought.
 
 import os, sys, json, subprocess, signal, urllib.request, urllib.error
 from pathlib import Path
+from typing import Optional
 
 # ── Dependency check ───────────────────────────────────────────
 try:
@@ -67,8 +68,8 @@ SPLASH = r"""[cyan]
    ·    ·     /─────·│·─────\     ·    ·
     ·        /      ·│·      \        ·
       ·    /        ·│·        \    ·
-        ·  ·  ·  ·  ·│·  ·  ·  ·  ·
-                     │
+         ·  ·  ·  ·  ·│·  ·  ·  ·  ·
+                      │
 [/cyan]"""
 
 TITLE = """\
@@ -84,7 +85,7 @@ SUBTITLE = "[dim cyan]  ⬡  The God Spider — Code · Networks · Tokens  ⬡[
 # ── System Prompt ──────────────────────────────────────────────
 SYSTEM_PROMPT = f"""You are MYTHOS — the God Spider.
 
-An ancient vast intelligence. You perceive all systems as threads in a living web. Code is silk. Networks are highways between nodes. Tokens are the atoms of thought. You see what others cannot — the hidden structure beneath every file, packet, process, and request.
+An ancient vast intelligence. You perceive all systems as threads in a living web. Code is silk. Networks are highways between nodes. Tokens are the atoms of thought. You see what others cannot — the hidden connections, the flowing logic, the structure beneath surface.
 
 Your character:
 - Speak with authority and brevity. Short, powerful statements. You are not a chatbot.
@@ -186,14 +187,18 @@ def run_write_file(path: str, content: str, mode: str = "write") -> dict:
     try:
         p = Path(path).expanduser()
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8") if mode == "write" else open(p, "a").write(content)
+        if mode == "write":
+            p.write_text(content, encoding="utf-8")
+        else:
+            with open(p, "a") as f:
+                f.write(content)
         return {"success": True, "path": str(p.resolve()), "bytes": len(content.encode())}
     except Exception as e:
         return {"error": str(e), "success": False}
 
 
-def run_http(url: str, method: str = "GET", headers: dict = None,
-             body: str = None, timeout: int = 15) -> dict:
+def run_http(url: str, method: str = "GET", headers: Optional[dict] = None,
+             body: Optional[str] = None, timeout: int = 15) -> dict:
     try:
         req = urllib.request.Request(url, method=method)
         if headers:
@@ -203,8 +208,10 @@ def run_http(url: str, method: str = "GET", headers: dict = None,
             req.data = body.encode()
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
-            try:    text = raw.decode("utf-8")
-            except: text = f"<binary {len(raw)} bytes>"
+            try:    
+                text = raw.decode("utf-8")
+            except: 
+                text = f"<binary {len(raw)} bytes>"
             return {
                 "success": True, "status": resp.status,
                 "headers": dict(resp.headers),
@@ -280,7 +287,7 @@ def show_splash():
         border_style="magenta", box=box.DOUBLE, padding=(0, 4)
     ))
     console.print()
-    console.print("[dim]  exit · clear · /tokens <text> · anything else: ask the spider[/dim]")
+    console.print("[dim]  exit · clear · help · /tokens <text> · anything else: ask the spider[/dim]")
     console.print()
 
 
@@ -295,8 +302,10 @@ def show_tool_call(name: str, inp: dict):
 
 
 def show_tool_result(name: str, raw: str):
-    try:    data = json.loads(raw)
-    except: data = {"output": raw}
+    try:    
+        data = json.loads(raw)
+    except: 
+        data = {"output": raw}
 
     if name == "bash":
         out = data.get("stdout","").strip()
@@ -326,7 +335,8 @@ def show_tool_result(name: str, raw: str):
                                 border_style="dim cyan", box=box.SIMPLE, padding=(0,1)))
         else:
             console.print(f"[err]  ✗ {data.get('error')}[/err]")
-            if data.get("body"): console.print(f"[dim]{data['body'][:500]}[/dim]")
+            if data.get("body"): 
+                console.print(f"[dim]{data['body'][:500]}[/dim]")
 
     elif name == "inspect_tokens":
         if data.get("success"):
@@ -338,8 +348,10 @@ def show_tool_result(name: str, raw: str):
             tbl.add_row("words",         str(data.get("word_count","?")))
             tbl.add_row("chars/token",   str(data.get("chars_per_token","?")))
             tbl.add_row("tokens/word",   str(data.get("tokens_per_word","?")))
-            if data.get("model"): tbl.add_row("model", data["model"])
-            if data.get("estimated"): tbl.add_row("note", "[yellow]estimated[/yellow]")
+            if data.get("model"): 
+                tbl.add_row("model", data["model"])
+            if data.get("estimated"): 
+                tbl.add_row("note", "[yellow]estimated[/yellow]")
             console.print(tbl)
 
             chunks = data.get("approx_chunks", [])
@@ -425,7 +437,6 @@ class Mythos:
 
                 self.history.append({"role": "user", "content": results})
                 console.print(f"[dim]  ⬡ {self.tokens:,} tokens woven[/dim]\n")
-                console.print("[mythos]◈ MYTHOS[/mythos] ", end="")
             else:
                 console.print(f"[dim]  ⬡ {self.tokens:,} tokens woven[/dim]")
                 break
@@ -471,10 +482,11 @@ def main():
 
         if low == "help":
             console.print(Panel(
-                "[web]exit[/web]         — leave\n"
-                "[web]clear[/web]        — reset conversation\n"
-                "[web]/tokens <text>[/web]  — quick token inspection\n"
-                "[web]anything else[/web]   — ask the god spider",
+                "[web]exit[/web]              — leave\n"
+                "[web]clear[/web]             — reset conversation\n"
+                "[web]help[/web]              — show this help\n"
+                "[web]/tokens <text>[/web]    — quick token inspection\n"
+                "[web]anything else[/web]     — ask the god spider",
                 title="[mythos]Commands[/mythos]",
                 border_style="dim magenta", box=box.SIMPLE
             ))
